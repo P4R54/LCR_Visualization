@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+<style>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"crossorigin="anonymous"></script>body {
+		font-family: "Inconsolata";
+	}
+</style>
+<style type="text/css">
+	body {
+		font-family: helvetica;
+		font-size: 14px;
+	}
+
+	#cy {
+		width: 100%;
+		height: 90%;
+		position: absolute;
+		left: 0;
+		bottom: 0;
+	}
+
+	h1 {
+		opacity: 0.5;
+		font-size: 1em;
+	}
+</style>
+
+<body>
+	<div class="col-md-10" id="cy"></div>
+	<div class="col-md-2" id="info"></div>
+	<div>
+		<select id="algorithm" hidden>
+			<option value="none" selected>None</option>
+			<option value="bfs">BFS</option>
+			<option value="dfs">DFS</option>
+			<option value="astar">A*</option>
+			<option value="custom">Custom</option>
+		</select>
+		<button style="border-radius: 0px" class="btn btn-success" onclick="applyAlgorithmFromSelect()">HERE</button>
+	</div>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.2.22/cytoscape.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<link href="https://fonts.googleapis.com/css?family=Inconsolata" rel="stylesheet">
+<script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+<script src="https://unpkg.com/webcola/WebCola/cola.min.js"></script>
+<script src="https://cytoscape.org/cytoscape.js-cola/cytoscape-cola.js"></script>
+<script>
+	var result = ""
+	var LevelCounter = 1;
+	var RoundCounter = 1
+	var NodesArray = new Array()
+	var LinksArray = new Array()
+	var CurrentRound;
+	var HideList = []
+	var Steps;
+	var NodeLinks;
+	var EndFlag = 0;
+	$.ajax({
+		url: "/api",
+		async: false,
+		success: function(data) {
+			result = data;
+		}
+	});
+	json_data = JSON.parse(result)
+	RoundsNumber = json_data[0].length
+	var myElements = []
+	const node_list = JSON.parse(json_data[1])
+	const node_list_back = JSON.parse(json_data[1])
+	var Steps2 = json_data[2]
+	var Leader;
+	node_list.forEach(function(item) {
+		tmp_object = {
+			'data': {
+				'id': item
+			}
+		}
+		myElements.push(tmp_object)
+	})
+	for (var i = 0; i < node_list.length; i++) {
+		next_index_val = node_list[i + 1]
+		if (next_index_val == undefined)
+			next_index_val = node_list[0]
+		tmp_object = {
+			'data': {
+				'source': node_list[i],
+				'target': next_index_val,
+				'is_walking': true
+			}
+		}
+		myElements.push(tmp_object)
+	}
+
+	var cy = cytoscape({
+		container: document.getElementById('cy'),
+		autounselectify: true,
+		boxSelectionEnabled: false,
+		layout: {
+			name: 'cola',
+			nodeSpacing: 12,
+			edgeLengthVal: 45,
+			animate: true
+		},
+		style: [{
+				"selector": "core",
+				"style": {
+					"selection-box-color": "#AAD8FF",
+					"selection-box-border-color": "#8BB0D0",
+					"selection-box-opacity": "0.5"
+				}
+			},
+			{
+				"selector": "node",
+				"style": {
+					"font-size": "12px",
+					"text-valign": "center",
+					"text-halign": "center",
+					"background-color": "#555",
+					"text-outline-color": "#555",
+					"text-outline-width": "2px",
+					"color": "#fff",
+					"overlay-padding": "6px",
+					"z-index": "10",
+					'label': 'data(id)'
+				}
+			},
+			{
+				"selector": "node:selected",
+				"style": {
+					"border-width": "6px",
+					"border-color": "#AAD8FF",
+					"border-opacity": "0.5",
+					"background-color": "#77828C",
+					"text-outline-color": "#77828C"
+				}
+			},
+			{
+				"selector": "edge",
+				"style": {
+					"curve-style": "haystack",
+					"haystack-radius": "0.1",
+					"opacity": "0.9",
+					"line-color": "#bbb",
+					"overlay-padding": "10px"
+				}
+			},
+			{
+				"selector": "node.unhighlighted",
+				"style": {
+					"opacity": "0.2"
+				}
+			},
+			{
+				"selector": "edge.unhighlighted",
+				"style": {
+					"opacity": "0.05"
+				}
+			},
+			{
+				"selector": ".highlighted",
+				"style": {
+					"z-index": "999999",
+					"line-color": "#FF6550",
+					"border-opacity": "0.99",
+					"transition-duration": "0.5s"
+				}
+			},
+			{
+				"selector": "node.highlighted",
+				"style": {
+					"border-width": "8px",
+					"border-color": "#FF6550",
+					"border-opacity": "0.99",
+					"background-color": "#394855",
+					"text-outline-color": "#394855",
+					"transition-property": "border-width, border-color, border-opacity, background-color, text-outline-color, shadow-blur, shadow-color, shadow-opacity, shadow-offset-x, shadow-offset-y"
+				}
+			},
+			{
+				"selector": "edge.highlighted",
+				"style": {
+					"line-color": "#FF6550",
+					"border-opacity": "0.99",
+					"width": "10px"
+				}
+			}
+		],
+		elements: myElements
+	});
+	cy.on('tap', 'node', function(e) {
+		var node = e.target;
+		alert("Node id = " + node.id())
+	});
+	var EdgeList = cy.elements().slice(node_list.length , cy.elements().length)
+	var NodeList = cy.elements().slice(0 , node_list.length)
+	var Key = "";
+	var Steps = JSON.parse(JSON.stringify(json_data[0]).replace(/P/g, ""))
+	var StepsBackUp = JSON.parse( JSON.stringify(Object.values(Steps))).reverse()
+	var KeyList = Object.keys(Steps).reverse()
+	var node_list_to_hide = []
+	var $algorithm = document.getElementById('algorithm')
+	Key = KeyList.pop()
+	node_list_to_hide = Steps[Key]
+	var getAlgorithm = (name) => {
+		if (KeyList.length == 0)
+			return Promise.resolve(undefined)
+		switch (name) {
+			case 'bfs':
+				return Promise.resolve(cy.elements().bfs.bind(cy.elements()));
+			case 'dfs':
+				return Promise.resolve(cy.elements().dfs.bind(cy.elements()));
+			case 'astar':
+				return Promise.resolve(cy.elements().aStar.bind(cy.elements()));
+			case 'none':
+				return Promise.resolve(cy.elements().aStar.bind(cy.elements()));
+			case 'custom':
+				return Promise.resolve(cy.elements().aStar.bind(cy.elements())); // replace with algorithm of choice
+			default:
+				return Promise.resolve(cy.elements().aStar.bind(cy.elements()));
+		}
+	};
+	var runAlgorithm = (algorithm) => {
+		if (node_list_to_hide.length == 0)
+			Key = KeyList.pop()
+		if (Steps.hasOwnProperty(Key))
+			node_list_to_hide = Steps[Key]
+		if (algorithm === undefined) {
+			return Promise.resolve(undefined);
+		} else {
+			var FindedPath = new Array()
+			var NodeLinks = node_list_to_hide.pop()
+			var rootId = Steps2[parseInt(NodeLinks)]
+			var goalId = NodeLinks
+			var rootIndex = NodeList.indexOf(cy.$("#" + rootId))
+			var goalIndex = NodeList.indexOf(cy.$("#" + goalId))
+			var iterator = rootIndex
+			if (rootIndex == goalIndex)
+			{
+				var newEdge = cy.elements()[cy.elements().indexOf(cy.$('#' + rootId)) + node_list.length]
+				FindedPath.push(newEdge)
+				for(var i=rootIndex+1; ; i++) {
+					if ((i % node_list.length) == goalIndex)
+					{
+						FindedPath.push(cy.elements()[i % node_list.length])
+						break
+					}
+					FindedPath.push(cy.elements()[i % node_list.length])
+					FindedPath.push(EdgeList[i % node_list.length])
+				}
+				return Promise.resolve(FindedPath);
+			}
+			else {
+			for(var i=rootIndex; ; i++) {
+				if ((i % node_list.length) == goalIndex)
+				{
+					FindedPath.push(cy.elements()[i % node_list.length])
+					HideList.push(cy.elements()[i % node_list.length])
+					break
+				}
+				FindedPath.push(cy.elements()[i % node_list.length])
+				FindedPath.push(EdgeList[i % node_list.length])
+			}
+				return Promise.resolve(FindedPath);
+			}
+		}
+	}
+	var currentAlgorithm;
+	var animateAlgorithm = (algResults) => {
+		cy.$().removeClass('highlighted start end');
+		currentAlgorithm = algResults;
+		if (algResults === undefined) {
+			return Promise.resolve();
+		} else {
+			var i = 0;
+			if (algResults[0] == algResults[algResults.length-1])
+				finalFunc()
+			return new Promise(resolve => {
+				var highlightNext = () => {
+					if (currentAlgorithm === algResults && i < algResults.length) {
+						algResults[i].addClass('highlighted');
+						i++;
+						setTimeout(highlightNext, 80);
+					} else {
+						resolve();
+					}
+				}
+				highlightNext();
+			});
+		}
+	};
+	var finalFunc = () => {
+		if (HideList.length == StepsBackUp[StepsBackUp["length"]-1].length)
+		{
+			StepsBackUp.pop()
+		}
+		for (var i=0; i < HideList.length; i++)
+			HideList[i].addClass('unhighlighted')
+		HideList = []
+		if (NodeLinks == Key && EndFlag == 0) {
+			Leader = NodeLinks
+			cy.elements().addClass('highlighted')
+			EndFlag++;
+		}
+		if (EndFlag == 1) {
+			cy.elements().addClass('highlighted')
+			cy.$('#' + (Object.keys(Steps)[Object.keys(Steps).length - 1] - 1).toString()).css('width', '100px')
+			cy.$('#' + (Object.keys(Steps)[Object.keys(Steps).length - 1] - 1).toString()).css('height', '100px')
+
+		}
+	};
+	var applyAlgorithmFromSelect = () => Promise.resolve($algorithm.value).then(getAlgorithm).then(runAlgorithm).then(animateAlgorithm).then(finalFunc)
+</script>
